@@ -1,0 +1,246 @@
+@using Microsoft.AspNetCore.Components
+@using Microsoft.AspNetCore.Components.Web
+@using RazorConsole.Components
+@using Spectre.Console
+@using System.Diagnostics
+@using System.Runtime.InteropServices
+@using mnmbox_tui.Services
+
+@* ═══ HEADER ═══ *@
+<Markup Content="╔════════════════════════════════════════════════════════════════════════════╗" Foreground="Color.Blue" />
+<Markup Content="║                    [ SYSTEM INFORMATION MONITOR ]                          ║" Foreground="Color.Blue" />
+<Markup Content="╚════════════════════════════════════════════════════════════════════════════╝" Foreground="Color.Blue" />
+
+@* ═══ CPU SECTION ═══ *@
+<Markup Content="@cpuHeader" Foreground="Color.Red" />
+<Columns>
+    <Markup Content="@($"TEMP: {FormatTemp(cpuInfo.Temperature)}")" Foreground="GetTempColor(cpuInfo.Temperature)" />
+    <Markup Content="@($"PWR: {FormatValue(cpuInfo.PackagePower, "W")}")" Foreground="Color.LightGoldenrod1" />
+    <Markup Content="@($"LOAD: {FormatValue(cpuInfo.Load, "%")}")" Foreground="GetLoadColor(cpuInfo.Load)" />
+    <Markup Content="@($"CLK: {FormatValue(cpuInfo.CoreClock, "MHz")}")" Foreground="Color.LightGoldenrod1" />
+</Columns>
+<Markup Content="└────────────────────────────────────────────────────────────────────────────┘" Foreground="Color.Red" />
+
+@* ═══ GPU SECTION ═══ *@
+@if (!string.IsNullOrEmpty(gpuInfo.Name))
+{
+    <Markup Content="@gpuHeader" Foreground="Color.Green" />
+    <Columns>
+        <Markup Content="@($"TEMP: {FormatTemp(gpuInfo.Temperature)}")" Foreground="GetTempColor(gpuInfo.Temperature)" />
+        <Markup Content="@($"HOT: {FormatTemp(gpuInfo.HotSpotTemperature)}")" Foreground="GetTempColor(gpuInfo.HotSpotTemperature)" />
+        <Markup Content="@($"PWR: {FormatValue(gpuInfo.Power, "W")}")" Foreground="Color.LightGoldenrod1" />
+        <Markup Content="@($"LOAD: {FormatValue(gpuInfo.Load, "%")}")" Foreground="GetLoadColor(gpuInfo.Load)" />
+    </Columns>
+    <Columns>
+        <Markup Content="@($"CORE: {FormatValue(gpuInfo.CoreClock, "MHz")}")" Foreground="Color.Cyan1" />
+        <Markup Content="@($"MEM: {FormatValue(gpuInfo.MemoryClock, "MHz")}")" Foreground="Color.Cyan1" />
+        <Markup Content="@($"VRAM: {FormatBytesMB(gpuInfo.MemoryUsed)}/{FormatBytesMB(gpuInfo.MemoryTotal)}")" Foreground="Color.HotPink" />
+        <Markup Content="@($"FAN: {FormatValue(gpuInfo.FanSpeed, "RPM")}")" Foreground="Color.Cyan1" />
+    </Columns>
+    <Markup Content="└────────────────────────────────────────────────────────────────────────────┘" Foreground="Color.Green" />
+}
+
+@* ═══ MEMORY SECTION ═══ *@
+<Markup Content="@ramHeader" Foreground="Color.Magenta1" />
+<Markup Content="@($"  [{GetProgressBar(memoryInfo.LoadPercent ?? 0, 50)}] {memoryInfo.LoadPercent?.ToString("F0") ?? "--"}%")" Foreground="GetLoadColor(memoryInfo.LoadPercent)" />
+<Markup Content="└────────────────────────────────────────────────────────────────────────────┘" Foreground="Color.Magenta1" />
+
+@* ═══ STORAGE SECTION ═══ *@
+@if (storageInfo.Any())
+{
+    <Markup Content="┌─ [ STORAGE ] ──────────────────────────────────────────────────────────────┐" Foreground="Color.Cyan1" />
+    @foreach (var storage in storageInfo.Take(3))
+    {
+        <Columns>
+            <Markup Content="@($"DISK: {storage.Name}")" Foreground="Color.White" />
+            <Markup Content="@($"TEMP: {FormatTemp(storage.Temperature)}")" Foreground="GetTempColor(storage.Temperature)" />
+            <Markup Content="@($"USED: {FormatValue(storage.UsedSpace, "GB")}/{FormatValue(storage.TotalSpace, "GB")}")" Foreground="Color.HotPink" />
+        </Columns>
+    }
+    <Markup Content="└────────────────────────────────────────────────────────────────────────────┘" Foreground="Color.Cyan1" />
+}
+
+@* ═══ NETWORK SECTION ═══ *@
+@if (networkInfo.Any())
+{
+    <Markup Content="┌─ [ NETWORK ] ──────────────────────────────────────────────────────────────┐" Foreground="Color.DarkCyan" />
+    @foreach (var net in networkInfo.Take(2))
+    {
+        <Columns>
+            <Markup Content="@($"ADAPTER: {net.Name}")" Foreground="Color.White" />
+            <Markup Content="@($"▼ {FormatSpeed(net.DownloadSpeed)}")" Foreground="Color.Green" />
+            <Markup Content="@($"▲ {FormatSpeed(net.UploadSpeed)}")" Foreground="Color.Blue" />
+        </Columns>
+    }
+    <Markup Content="└────────────────────────────────────────────────────────────────────────────┘" Foreground="Color.DarkCyan" />
+}
+
+@* ═══ SYSTEM INFO SECTION ═══ *@
+<Markup Content="┌─ [ SYSTEM ] ───────────────────────────────────────────────────────────────┐" Foreground="Color.Grey" />
+<Columns>
+    <Markup Content="@($"OS: {osArchitecture} | UPTIME: {uptime} | THREADS: {threadCount}")" Foreground="Color.White" />
+</Columns>
+<Markup Content="└────────────────────────────────────────────────────────────────────────────┘" Foreground="Color.Grey" />
+
+@* ═══ FOOTER ═══ *@
+<Markup Content="" Foreground="Color.Grey" />
+<Columns>
+    <TextButton Content="[ REFRESH ]" 
+                OnClick="ForceRefresh"
+                BackgroundColor="Color.Grey"
+                FocusedColor="Color.Blue" />
+    
+    <TextButton Content="[ EXIT ]" 
+                OnClick="ExitApp"
+                BackgroundColor="Color.Grey"
+                FocusedColor="Color.Red" />
+</Columns>
+<Markup Content="@footerText" Foreground="Color.Grey" />
+
+@code {
+    private HardwareMonitorService _hardwareMonitor = new();
+    
+    // CPU Info
+    private CpuInfo cpuInfo = new();
+    
+    // GPU Info
+    private GpuInfo gpuInfo = new();
+    
+    // Memory Info
+    private MemoryInfo memoryInfo = new();
+    
+    // Storage Info
+    private List<StorageInfo> storageInfo = new();
+    
+    // Network Info
+    private List<NetworkInfo> networkInfo = new();
+    
+    // System Info
+    private string osArchitecture = "";
+    private string uptime = "";
+    private string threadCount = "";
+    
+    // Header strings
+    private string cpuHeader => $"┌─ [ CPU: {cpuInfo.Name} ]────────────────────────────────────────────────────┐";
+    private string gpuHeader => $"┌─ [ GPU: {gpuInfo.Name} ({gpuInfo.Type}) ]──────────────────────────────────────┐";
+    private string ramHeader => $"┌─ [ RAM: {memoryInfo.Used?.ToString("F1")}/{memoryInfo.Total?.ToString("F1")} GB ]────────────────────────────────────────────┐";
+    private string footerText => $"  TAB/ENTER to navigate | Auto-refresh: {(autoRefresh ? "ON" : "OFF")}";
+    
+    private Stopwatch processUptime = Stopwatch.StartNew();
+    private System.Timers.Timer? refreshTimer;
+    private bool autoRefresh = true;
+
+    protected override void OnInitialized()
+    {
+        RefreshData();
+        
+        // Auto-refresh every 2 seconds
+        refreshTimer = new System.Timers.Timer(2000);
+        refreshTimer.Elapsed += async (s, e) => 
+        {
+            RefreshData();
+            await InvokeAsync(StateHasChanged);
+        };
+        refreshTimer.AutoReset = true;
+        refreshTimer.Start();
+    }
+
+    private void RefreshData()
+    {
+        // Update hardware data
+        _hardwareMonitor.Update();
+        
+        // Get hardware info
+        cpuInfo = _hardwareMonitor.GetCpuInfo();
+        gpuInfo = _hardwareMonitor.GetGpuInfo();
+        memoryInfo = _hardwareMonitor.GetMemoryInfo();
+        storageInfo = _hardwareMonitor.GetStorageInfo();
+        networkInfo = _hardwareMonitor.GetNetworkInfo();
+        
+        // System info
+        osArchitecture = RuntimeInformation.OSArchitecture.ToString();
+        uptime = processUptime.Elapsed.ToString(@"hh\:mm\:ss");
+        
+        using var process = Process.GetCurrentProcess();
+        threadCount = process.Threads.Count.ToString();
+    }
+
+    private void ForceRefresh()
+    {
+        RefreshData();
+    }
+
+    private void ExitApp()
+    {
+        refreshTimer?.Stop();
+        refreshTimer?.Dispose();
+        _hardwareMonitor.Dispose();
+        Environment.Exit(0);
+    }
+
+    // Helper methods
+    private Color GetTempColor(float? temp)
+    {
+        if (!temp.HasValue) return Color.Grey;
+        if (temp < 50) return Color.Green;
+        if (temp < 70) return Color.Yellow;
+        if (temp < 85) return Color.Orange1;
+        return Color.Red;
+    }
+
+    private Color GetLoadColor(float? load)
+    {
+        if (!load.HasValue) return Color.Grey;
+        if (load < 30) return Color.Green;
+        if (load < 60) return Color.Yellow;
+        if (load < 85) return Color.Orange1;
+        return Color.Red;
+    }
+
+    private string FormatTemp(float? temp)
+    {
+        if (!temp.HasValue) return "--°C";
+        return $"{temp.Value:F0}°C";
+    }
+
+    private string FormatValue(float? value, string unit)
+    {
+        if (!value.HasValue) return $"--{unit}";
+        return $"{value.Value:F1}{unit}";
+    }
+
+    private string FormatBytesMB(float? mb)
+    {
+        if (!mb.HasValue) return "--";
+        if (mb >= 1024)
+            return $"{mb / 1024:F1}G";
+        return $"{mb:F0}M";
+    }
+
+    private string FormatSpeed(float? mbps)
+    {
+        if (!mbps.HasValue || mbps == 0) return "0 MB/s";
+        if (mbps >= 1024)
+            return $"{mbps / 1024:F1} GB/s";
+        return $"{mbps:F1} MB/s";
+    }
+
+    private string GetProgressBar(float percent, int width)
+    {
+        int filled = (int)(percent / 100 * width);
+        filled = Math.Clamp(filled, 0, width);
+        int empty = width - filled;
+        
+        char filledChar = '█';
+        char emptyChar = '░';
+        
+        return new string(filledChar, filled) + new string(emptyChar, empty);
+    }
+
+    public void Dispose()
+    {
+        refreshTimer?.Stop();
+        refreshTimer?.Dispose();
+        _hardwareMonitor.Dispose();
+    }
+}
